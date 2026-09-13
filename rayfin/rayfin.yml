@@ -1,0 +1,28 @@
+id: chat-genie
+name: Chat Genie
+version: 1.0.0
+services:
+  auth:
+    enabled: true
+    fabric:
+      enabled: true
+    password:
+      enabled: true
+    allowedRedirectUris:
+      - http://localhost:5173
+      - http://localhost:5174
+      - http://127.0.0.1:5174
+      - https://robin-brook-cbb9c6fb6b-centralindia.webapp.fabricapps.net
+  data:
+    enabled: false
+  staticHosting:
+    enabled: true
+    folder: dist
+    buildCommand: npm run build:fabric
+    indexDocument: index.html
+  storage:
+    enabled: false
+  functions:
+    # Fabric AppBackend currently rejects Functions settings. The
+    # Fabric User Data Function work item is the supported backend path.
+    enabled: false

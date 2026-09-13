@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/userDataFunction/definition/1.1.0/schema.json",
+  "runtime": "PYTHON",
+  "connectedDataSources": [
+    {
+      "alias": "ChatGenieSecret",
+      "artifactId": "32ad2085-7001-4368-9651-c585abdd953c",
+      "artifactType": "Variables",
+      "workspaceId": "238b7fdf-e09a-4d02-9012-8afed2aee1b2"
+    }
+  ],
+  "functions": [
+    {
+      "name": "health_check",
+      "description": "Returns a deployment health response.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "list_reports",
+      "description": "Lists Power BI reports accessible to the signed-in Fabric user.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "list_agents",
+      "description": "Lists published Fabric Data Agents in the configured workspace.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "get_embed_config",
+      "description": "Returns user-scoped Power BI embed configuration.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "ask_agent",
+      "description": "Sends a question to a published Fabric Data Agent.",
+      "isPublicEndpointEnabled": true
+    }
+  ],
+  "libraries": {
+    "public": [
+      {
+        "name": "fabric-user-data-functions",
+        "type": "PYPI",
+        "version": "1.0"
+      },
+      {
+        "name": "azure-identity",
+        "type": "PYPI",
+        "version": "1.26.0b1"
+      },
+      {
+        "name": "requests",
+        "type": "PYPI",
+        "version": "2.32.5"
+      }
+    ],
+    "private": []
+  }
+}

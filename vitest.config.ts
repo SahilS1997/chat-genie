@@ -15,5 +15,9 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules', 'dist'],
     setupFiles: ['./src/__tests__/setup.ts'],
+    // Multi-step userEvent flows (typing long @mentions, awaiting parallel
+    // agent replies) can comfortably exceed the 5s default under system
+    // load without indicating a real hang, so allow more headroom.
+    testTimeout: 15000,
   },
 });

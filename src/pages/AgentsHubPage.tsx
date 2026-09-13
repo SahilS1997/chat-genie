@@ -54,21 +54,42 @@ function paletteFor(agentIndex: number) {
 }
 
 /**
- * Resolves which agent a composed message should go to: a leading
- * "@AgentName" mention (longest name matched first, so one agent's name
- * can't be shadowed by another that shares its prefix) overrides the
- * default (first) agent in the list.
+ * Parses every leading "@AgentName" mention (longest names matched first, so
+ * one agent's name can't be shadowed by another that shares its prefix) from
+ * the start of a message, returning the matched agents in mention order plus
+ * whatever text follows them.
  */
-function resolveTarget(rawInput: string, agents: PortalAgent[]) {
-  const trimmed = rawInput.trim();
+function parseLeadingMentions(rawInput: string, agents: PortalAgent[]) {
+  let remainder = rawInput.trimStart();
   const byLongestName = [...agents].sort((a, b) => b.name.length - a.name.length);
-  for (const agent of byLongestName) {
-    const prefix = `@${agent.name}`;
-    if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
-      return { agent, question: trimmed.slice(prefix.length).trim(), mentioned: true };
-    }
+  const mentioned: PortalAgent[] = [];
+  for (;;) {
+    const match = byLongestName.find(
+      (agent) =>
+        !mentioned.includes(agent) &&
+        remainder.toLowerCase().startsWith(`@${agent.name.toLowerCase()}`)
+    );
+    if (!match) break;
+    mentioned.push(match);
+    remainder = remainder.slice(`@${match.name}`.length).trimStart();
   }
-  return { agent: agents[0] ?? null, question: trimmed, mentioned: false };
+  return { mentioned, remainder: remainder.trim() };
+}
+
+/**
+ * Resolves which agent(s) a composed message should go to. Any number of
+ * leading "@AgentName" mentions fan the same question out to all of them at
+ * once — mention several agents to ask them all in one go, like tagging
+ * multiple people in a group chat. With no leading mentions, the message
+ * goes to the default (first) agent only.
+ */
+function resolveTargets(rawInput: string, agents: PortalAgent[]) {
+  const { mentioned, remainder } = parseLeadingMentions(rawInput, agents);
+  if (mentioned.length) {
+    return { targets: mentioned, question: remainder, mentioned: true };
+  }
+  const fallback = agents[0];
+  return { targets: fallback ? [fallback] : [], question: remainder, mentioned: false };
 }
 
 /** Finds an in-progress "@token" ending at the caret, or null if none is being typed. */
@@ -98,6 +119,7 @@ export function AgentsHubPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pendingAgents, setPendingAgents] = useState<string[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
@@ -189,8 +211,14 @@ export function AgentsHubPage() {
   };
 
   const insertQuickMention = (agent: PortalAgent) => {
-    const { question } = resolveTarget(input, agents);
-    const next = `@${agent.name} ${question}`;
+    const { mentioned, remainder } = parseLeadingMentions(input, agents);
+    if (mentioned.some((existing) => existing.id === agent.id)) {
+      // Already tagged — just return focus instead of adding a duplicate mention.
+      textareaRef.current?.focus();
+      return;
+    }
+    const mentionPrefix = [...mentioned, agent].map((tagged) => `@${tagged.name}`).join(' ');
+    const next = remainder ? `${mentionPrefix} ${remainder}` : `${mentionPrefix} `;
     setInput(next);
     setMention(null);
     setTimeout(() => {
@@ -204,8 +232,8 @@ export function AgentsHubPage() {
   const submit = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
     if (busy) return;
-    const { agent, question, mentioned } = resolveTarget(input, agents);
-    if (!agent || !question) return;
+    const { targets, question, mentioned } = resolveTargets(input, agents);
+    if (!targets.length || !question) return;
 
     setInput('');
     setMention(null);
@@ -215,29 +243,41 @@ export function AgentsHubPage() {
       { id: `u-${Date.now()}`, role: 'user', content: mentioned ? input.trim() : question },
     ]);
     setBusy(true);
-    try {
-      const response: AgentChatResponse = await askAgent(
-        agent.id,
-        question,
-        undefined,
-        conversationIds.current[agent.id]
-      );
-      conversationIds.current[agent.id] = response.conversationId ?? conversationIds.current[agent.id];
-      setMessages((current) => [
-        ...current,
-        {
-          id: `a-${Date.now()}`,
-          role: 'agent',
-          content: response.answer,
-          agentName: agent.name,
-          agentIndex: agentIndexById.get(agent.id) ?? 0,
-        },
-      ]);
-    } catch (reason: unknown) {
-      setSendError(errorMessage(reason));
-    } finally {
-      setBusy(false);
-    }
+    setPendingAgents(targets.map((agent) => agent.name));
+
+    // Each mentioned agent is asked in parallel and answers independently —
+    // whichever agent responds first appears first, like a real group chat —
+    // rather than waiting for the slowest agent before showing any reply.
+    const failures: string[] = [];
+    await Promise.all(
+      targets.map(async (agent) => {
+        try {
+          const response: AgentChatResponse = await askAgent(
+            agent.id,
+            question,
+            undefined,
+            conversationIds.current[agent.id]
+          );
+          conversationIds.current[agent.id] = response.conversationId ?? conversationIds.current[agent.id];
+          setMessages((current) => [
+            ...current,
+            {
+              id: `a-${Date.now()}-${agent.id}`,
+              role: 'agent',
+              content: response.answer,
+              agentName: agent.name,
+              agentIndex: agentIndexById.get(agent.id) ?? 0,
+            },
+          ]);
+        } catch (reason: unknown) {
+          failures.push(targets.length > 1 ? `${agent.name}: ${errorMessage(reason)}` : errorMessage(reason));
+        } finally {
+          setPendingAgents((current) => current.filter((name) => name !== agent.name));
+        }
+      })
+    );
+    if (failures.length) setSendError(failures.join(' • '));
+    setBusy(false);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -320,7 +360,7 @@ export function AgentsHubPage() {
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             {defaultAgent
-              ? `${defaultAgent.name} answers by default. Type “@” to ask a specific agent instead — just like mentioning someone in a group chat.`
+              ? `${defaultAgent.name} answers by default. Type “@” to bring one or more agents into the conversation — mention several at once to ask them all in parallel.`
               : 'Connect a workspace with at least one published Data Agent to start chatting.'}
           </p>
         </div>
@@ -355,7 +395,7 @@ export function AgentsHubPage() {
             {!messages.length && (
               <p className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-slate-400">
                 {hasAgents
-                  ? 'No messages yet. Say hello — your default agent will jump in, or @mention someone specific.'
+                  ? 'No messages yet. Say hello — your default agent will jump in, or @mention one or more agents by name.'
                   : loading
                     ? 'Loading your Data Agents…'
                     : 'No Data Agents are available in this workspace yet.'}
@@ -386,7 +426,9 @@ export function AgentsHubPage() {
             {busy && (
               <div className="mr-2 flex items-center gap-2 text-xs text-slate-500 sm:mr-16">
                 <span className="flex h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
-                Waiting for a response…
+                {pendingAgents.length > 1
+                  ? `Waiting for ${pendingAgents.join(', ')}…`
+                  : 'Waiting for a response…'}
               </div>
             )}
             {sendError && <p className="rounded-lg bg-rose-400/10 p-2 text-xs text-rose-200">{sendError}</p>}

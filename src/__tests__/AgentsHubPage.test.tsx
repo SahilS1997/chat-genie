@@ -78,6 +78,65 @@ describe('AgentsHubPage', () => {
     expect(screen.getByText('@Finance Agent how is Q3 spend?')).toBeInTheDocument();
   });
 
+  it('fans a message mentioning multiple agents out to each of them in parallel', async () => {
+    let resolveIcc: (value: { answer: string }) => void = () => {};
+    let resolveFinance: (value: { answer: string }) => void = () => {};
+    portal.askAgent.mockImplementation(
+      (agentId: string) =>
+        new Promise((resolve) => {
+          if (agentId === 'agent-1') resolveIcc = resolve;
+          else resolveFinance = resolve;
+        })
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const textarea = await screen.findByLabelText('Ask a Data Agent');
+    await user.type(
+      textarea,
+      '@ICC World Test Championship Agent @Finance Agent give me a status update'
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(portal.askAgent).toHaveBeenCalledTimes(2));
+    expect(portal.askAgent).toHaveBeenCalledWith('agent-1', 'give me a status update', undefined, undefined);
+    expect(portal.askAgent).toHaveBeenCalledWith('agent-2', 'give me a status update', undefined, undefined);
+    // The full, multi-mention message stays visible in the user's own bubble.
+    expect(
+      screen.getByText('@ICC World Test Championship Agent @Finance Agent give me a status update')
+    ).toBeInTheDocument();
+
+    expect(
+      await screen.findByText('Waiting for ICC World Test Championship Agent, Finance Agent…')
+    ).toBeInTheDocument();
+
+    // Finance replies first even though it was mentioned second — arrival order, not mention order.
+    resolveFinance({ answer: 'Finance says all good.' });
+    expect(await screen.findByText('Finance says all good.')).toBeInTheDocument();
+    expect(await screen.findByText('Waiting for a response…')).toBeInTheDocument();
+
+    resolveIcc({ answer: 'ICC says all good too.' });
+    expect(await screen.findByText('ICC says all good too.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/Waiting for/i)).not.toBeInTheDocument());
+  });
+
+  it('shows a per-agent error but still displays replies from agents that succeeded', async () => {
+    portal.askAgent.mockImplementation((agentId: string) =>
+      agentId === 'agent-1'
+        ? Promise.resolve({ answer: 'ICC is fine.' })
+        : Promise.reject(new Error('Finance agent offline.'))
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const textarea = await screen.findByLabelText('Ask a Data Agent');
+    await user.type(textarea, '@ICC World Test Championship Agent @Finance Agent status check');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText('ICC is fine.')).toBeInTheDocument();
+    expect(await screen.findByText('Finance Agent: Finance agent offline.')).toBeInTheDocument();
+  });
+
   it('shows a filterable @mention dropdown while typing and lets the user pick an agent', async () => {
     const user = userEvent.setup();
     renderPage();
@@ -98,6 +157,29 @@ describe('AgentsHubPage', () => {
     renderPage();
 
     const chip = await screen.findByRole('listitem', { name: /Finance Agent/i });
+    await user.click(chip);
+
+    const textarea = screen.getByLabelText('Ask a Data Agent');
+    expect(textarea).toHaveValue('@Finance Agent ');
+  });
+
+  it('appends an additional mention when a second agent chip is clicked, instead of replacing the first', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('listitem', { name: /Finance Agent/i }));
+    await user.click(screen.getByRole('listitem', { name: /ICC World Test Championship Agent/i }));
+
+    const textarea = screen.getByLabelText('Ask a Data Agent');
+    expect(textarea).toHaveValue('@Finance Agent @ICC World Test Championship Agent ');
+  });
+
+  it('does not add a duplicate mention when the same agent chip is clicked again', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const chip = await screen.findByRole('listitem', { name: /Finance Agent/i });
+    await user.click(chip);
     await user.click(chip);
 
     const textarea = screen.getByLabelText('Ask a Data Agent');

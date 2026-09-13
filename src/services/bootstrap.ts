@@ -1,6 +1,7 @@
 import { resolveRayfinFunctionsBaseUrl } from '@microsoft/rayfin-local-dev';
 
 import type { IAuthService } from './IAuthService';
+import { EntraAuthService } from './EntraAuthService';
 import { MockAuthService } from './MockAuthService';
 import { RayfinAuthService } from './RayfinAuthService';
 import { initRayfinClient } from './rayfinClient';
@@ -23,7 +24,6 @@ function isLocalBackendUrl(url: string): boolean {
  */
 export async function bootstrapAuth(): Promise<IAuthService> {
   if (import.meta.env.MODE === 'github-pages') {
-    const { EntraAuthService } = await import('./EntraAuthService');
     return new EntraAuthService();
   }
 

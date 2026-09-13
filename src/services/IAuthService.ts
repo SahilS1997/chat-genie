@@ -8,12 +8,15 @@ export interface AuthUser {
 /**
  * Auth service contract used by the React layer.
  *
- * Two implementations ship with this template:
+ * Three implementations ship with this template:
  *
  * - {@link MockAuthService} — used when the API URL points at localhost.
  *   Signs into the bundled local backend with a fixture email/password.
  * - {@link RayfinAuthService} — used in production. Wraps the Fabric
  *   brokered auth flow from `@microsoft/rayfin-auth-provider-fabric`.
+ * - {@link EntraAuthService} — used by the standalone GitHub Pages build.
+ *   Acquires the same delegated Fabric and Power BI scopes directly through
+ *   MSAL because a GitHub Pages site has no Rayfin backend.
  *
  * `bootstrapAuth()` picks the right one from VITE_* env vars at startup.
  */

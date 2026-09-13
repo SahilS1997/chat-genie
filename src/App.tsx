@@ -29,7 +29,13 @@ function AuthGuard({
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      basename={
+        import.meta.env.MODE === 'github-pages'
+          ? import.meta.env.BASE_URL
+          : undefined
+      }
+    >
       {/* ensure all new routes require auth */}
       <Routes>
         <Route

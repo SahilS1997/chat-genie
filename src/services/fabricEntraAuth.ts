@@ -24,15 +24,33 @@ let account: AccountInfo | undefined;
 let fabricTokenPromise: Promise<string> | undefined;
 let powerBiTokenPromise: Promise<string> | undefined;
 
+function getApplicationRedirectUri(): string {
+  if (import.meta.env.MODE !== 'github-pages') {
+    return window.location.origin;
+  }
+
+  const basePath = import.meta.env.BASE_URL;
+  return new URL(basePath, window.location.origin).href;
+}
+
+function getPopupRelayUri(): string {
+  if (import.meta.env.MODE !== 'github-pages') {
+    return `${window.location.origin}/?fabric-auth=relay`;
+  }
+
+  const redirectUri = getApplicationRedirectUri();
+  return `${redirectUri.endsWith('/') ? redirectUri : `${redirectUri}/`}?fabric-auth=relay`;
+}
+
 async function getApplication() {
   applicationPromise ??= (async () => {
     const application = new PublicClientApplication({
       auth: {
         clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
-        redirectUri: window.location.origin,
+        redirectUri: getApplicationRedirectUri(),
         // The relay returns the popup response across Fabric's storage partition.
-        popupRelayUri: `${window.location.origin}/?fabric-auth=relay`,
+        popupRelayUri: getPopupRelayUri(),
       },
       cache: {
         cacheLocation: 'sessionStorage',
@@ -73,6 +91,21 @@ export async function getPowerBiAccessToken(interactive = false): Promise<string
 
 export function connectFabric(): Promise<string> {
   return acquireAccessToken(connectionScopes, true, 'Fabric');
+}
+
+export async function getFabricAccount(): Promise<AccountInfo | null> {
+  const application = await getApplication();
+  account ??= application.getAllAccounts()[0];
+  return account ?? null;
+}
+
+export async function clearFabricAccount(): Promise<void> {
+  const application = await getApplication();
+  const cachedAccount = account ?? application.getAllAccounts()[0];
+  if (cachedAccount) {
+    await application.clearCache({ account: cachedAccount });
+  }
+  account = undefined;
 }
 
 async function acquireAccessToken(

@@ -4,6 +4,14 @@ import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
+function normalizeBasePath(value: string | undefined): string {
+  const basePath = value?.trim() || '/';
+  if (!basePath.startsWith('/')) {
+    throw new Error('VITE_APP_BASE_PATH must start with "/".');
+  }
+  return basePath.endsWith('/') ? basePath : `${basePath}/`;
+}
+
 export default defineConfig(({ mode, command }) => {
   // Pin the dev server to Rayfin's per-project port (VITE_PORT, mapped from
   // RAYFIN_PUBLIC_FRONTEND_PORT in .env.local) so multiple local frontends
@@ -29,6 +37,7 @@ export default defineConfig(({ mode, command }) => {
   }
 
   return {
+    base: normalizeBasePath(env.VITE_APP_BASE_PATH),
     plugins: [react(), tailwindcss(), rayfinLocalDev()],
     resolve: {
       alias: {

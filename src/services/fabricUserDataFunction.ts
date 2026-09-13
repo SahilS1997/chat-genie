@@ -39,7 +39,8 @@ async function invoke<T>(
     `${baseUrl}/v1/workspaces/${workspaceId}/userDataFunctions/${functionItemId}/functions/${functionName}/invoke`,
     {
       method: 'POST',
-      credentials: 'include',
+      credentials:
+        import.meta.env.MODE === 'github-pages' ? 'omit' : 'include',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${accessToken}`,

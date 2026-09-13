@@ -2,8 +2,20 @@ import { BrowserUtils } from '@azure/msal-browser';
 import { runPopupRelay } from '@azure/msal-browser/popup-relay';
 import { broadcastResponseToMainFrame } from '@azure/msal-browser/redirect-bridge';
 
+function isApplicationRoot(url: URL): boolean {
+  if (import.meta.env.MODE !== 'github-pages') {
+    return url.pathname === '/';
+  }
+
+  const basePath = import.meta.env.BASE_URL;
+  return (
+    url.pathname === basePath ||
+    (basePath !== '/' && url.pathname === basePath.slice(0, -1))
+  );
+}
+
 function hasAuthResponse(url: URL): boolean {
-  if (url.pathname !== '/') return false;
+  if (!isApplicationRoot(url)) return false;
   const hasResponse = [url.searchParams, new URLSearchParams(url.hash.slice(1))].some(
     (params) =>
       !!params.get('state') &&
@@ -38,7 +50,7 @@ function renderAuthStatus(message: string) {
 /** Handle same-origin MSAL helper windows without starting the Fabric app. */
 export async function handleFabricAuthPage(): Promise<boolean> {
   const url = new URL(window.location.href);
-  if (url.pathname === '/' && url.searchParams.get('fabric-auth') === 'relay') {
+  if (isApplicationRoot(url) && url.searchParams.get('fabric-auth') === 'relay') {
     const { panel, status } = renderAuthStatus(
       'Continue to Microsoft sign-in to connect your reports and data agents.'
     );

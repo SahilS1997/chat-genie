@@ -75,6 +75,26 @@ The production frontend uses the owner-controlled `Chat Genie Tenant Bridge Live
 v3` User Data Function by default. Override its ID only through
 `VITE_FABRIC_USER_DATA_FUNCTION_ID`.
 
+## GitHub Pages
+
+The repository includes a GitHub Actions workflow that builds and deploys a
+static GitHub Pages version of the portal. It uses an Entra/MSAL authentication
+adapter rather than Rayfin's Fabric-hosted session broker, then calls the same
+protected User Data Function and embeds reports with the signed-in user's
+delegated Power BI token.
+
+The Pages build sets `VITE_APP_BASE_PATH` to the repository path automatically.
+Before enabling the workflow, register the exact GitHub Pages URL as a SPA
+redirect URI on the Entra app. For this repository, the URI is:
+
+```text
+https://sahils1997.github.io/chat-genie/
+```
+
+The static page contains no service-principal secret. Visitors must still sign
+in and have access to the Fabric workspace and Power BI report before data is
+shown.
+
 ## Getting started
 
 ```bash

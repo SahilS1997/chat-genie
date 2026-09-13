@@ -22,6 +22,11 @@ function isLocalBackendUrl(url: string): boolean {
  * - Anything else     → {@link RayfinAuthService} (requires VITE_FABRIC_* vars)
  */
 export async function bootstrapAuth(): Promise<IAuthService> {
+  if (import.meta.env.MODE === 'github-pages') {
+    const { EntraAuthService } = await import('./EntraAuthService');
+    return new EntraAuthService();
+  }
+
   const apiUrl = import.meta.env.VITE_RAYFIN_API_URL || 'http://localhost:5168';
   const localDev = isLocalBackendUrl(apiUrl);
   const publishableKey = import.meta.env.VITE_RAYFIN_PUBLISHABLE_KEY;

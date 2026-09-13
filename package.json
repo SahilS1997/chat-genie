@@ -13,6 +13,7 @@
     "dev": "rayfin dev",
     "dev:frontend": "node scripts/dev-frontend.mjs",
     "build": "tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --mode github-pages && node scripts/create-pages-fallback.mjs",
     "build:fabric": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

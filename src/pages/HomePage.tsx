@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { factories, models, service as powerBiServiceModule } from 'powerbi-client';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Link } from 'react-router-dom';
 
+import { MarkdownMessage } from '@/components/MarkdownMessage';
 import { useAuth } from '@/hooks/AuthContext';
 import {
   askAgent,
@@ -38,35 +38,6 @@ function powerBiErrorMessage(detail: unknown) {
     return detail.message;
   }
   return 'Power BI returned an embed error.';
-}
-
-function AgentMessage({ content }: { content: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ children }) => <h3 className="mb-2 text-base font-bold text-white">{children}</h3>,
-        h2: ({ children }) => <h4 className="mb-2 mt-4 text-sm font-bold text-white first:mt-0">{children}</h4>,
-        h3: ({ children }) => <h4 className="mb-2 mt-3 text-sm font-semibold text-cyan-100">{children}</h4>,
-        p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-        ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
-        ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
-        li: ({ children }) => <li className="pl-1">{children}</li>,
-        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-        code: ({ children, className }) => (
-          <code className={className ? 'block overflow-x-auto rounded-lg bg-black/30 p-3 text-xs text-cyan-100' : 'rounded bg-black/25 px-1 py-0.5 text-cyan-100'}>
-            {children}
-          </code>
-        ),
-        table: ({ children }) => <div className="mb-3 overflow-x-auto rounded-lg border border-white/10"><table className="min-w-full text-left text-xs">{children}</table></div>,
-        th: ({ children }) => <th className="border-b border-white/10 bg-white/5 px-3 py-2 font-semibold text-white">{children}</th>,
-        td: ({ children }) => <td className="border-b border-white/5 px-3 py-2 align-top">{children}</td>,
-        a: ({ children, href }) => <a className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200" href={href}>{children}</a>,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  );
 }
 
 export function HomePage() {
@@ -141,6 +112,12 @@ export function HomePage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-slate-400 sm:block">{firstName}</span>
+          <Link
+            to="/agents"
+            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan-300/40 hover:text-white"
+          >
+            Advanced Agent
+          </Link>
           <button
             type="button"
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -306,7 +283,7 @@ function FloatingChat({ agent, report }: { agent: PortalAgent | null; report: Po
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm leading-6">
           {!messages.length && <p className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-slate-400">Ask a question about the selected report. Answers come from the connected Fabric Data Agent.</p>}
-          {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'ml-7 rounded-xl bg-cyan-400/10 p-3 text-cyan-50' : 'mr-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-slate-300'}>{message.role === 'assistant' ? <AgentMessage content={message.content} /> : message.content}</div>)}
+          {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'ml-7 rounded-xl bg-cyan-400/10 p-3 text-cyan-50' : 'mr-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-slate-300'}>{message.role === 'assistant' ? <MarkdownMessage content={message.content} /> : message.content}</div>)}
           {error && <p className="rounded-lg bg-rose-400/10 p-2 text-xs text-rose-200">{error}</p>}
         </div>
         <form onSubmit={submit} className="border-t border-white/10 p-3">

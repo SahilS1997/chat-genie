@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthPage } from '@/components/AuthPage';
 import { useAuth } from '@/hooks/AuthContext';
+import { AgentsHubPage } from '@/pages/AgentsHubPage';
 import { HomePage } from '@/pages/HomePage';
 
 function AuthGuard({
@@ -51,6 +52,14 @@ function App() {
           element={
             <AuthGuard requireAuth={true}>
               <HomePage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/agents"
+          element={
+            <AuthGuard requireAuth={true}>
+              <AgentsHubPage />
             </AuthGuard>
           }
         />

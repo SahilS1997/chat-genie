@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const portal = vi.hoisted(() => ({
@@ -22,6 +23,14 @@ vi.mock('powerbi-client', () => ({
 
 import { HomePage } from '@/pages/HomePage';
 
+function renderHomePage() {
+  return render(
+    <MemoryRouter>
+      <HomePage />
+    </MemoryRouter>
+  );
+}
+
 describe('Fabric portal reconnection', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -31,7 +40,7 @@ describe('Fabric portal reconnection', () => {
 
   it('shows a failed interactive sign-in and lets the user retry', async () => {
     portal.connectFabric.mockRejectedValue(new Error('The sign-in popup was blocked.'));
-    render(<HomePage />);
+    renderHomePage();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Connect Fabric' }));
 
@@ -42,7 +51,7 @@ describe('Fabric portal reconnection', () => {
 
   it('reloads discovery after sign-in without navigating away from the Fabric iframe', async () => {
     portal.connectFabric.mockResolvedValue('test-token');
-    render(<HomePage />);
+    renderHomePage();
     const connectButton = await screen.findByRole('button', { name: 'Connect Fabric' });
     portal.listReports.mockResolvedValue([]);
 
@@ -53,3 +62,4 @@ describe('Fabric portal reconnection', () => {
     expect(portal.listAgents).toHaveBeenCalledTimes(2);
   });
 });
+
